@@ -876,10 +876,9 @@ function buildCard(docId,data){
     card.appendChild(fb);
   }
 
-  // AI feedback container
+  // AI feedback container — always hidden until the button is pressed
   const aiBox=document.createElement('div'); aiBox.className='ec-ai hidden'; aiBox.id='aiFeedback-'+docId;
   if(data.aiFeedback){
-    aiBox.classList.remove('hidden');
     aiBox.innerHTML='<span class="ec-ai-label">AI EXAMINER</span>'+escapeHtml(data.aiFeedback);
   }
   card.appendChild(aiBox);
@@ -887,8 +886,15 @@ function buildCard(docId,data){
   // actions
   const acts=document.createElement('div'); acts.className='ec-actions';
   const aiBtn=document.createElement('button'); aiBtn.className='ec-act ai-act'; aiBtn.id='aiFeedbackBtn-'+docId;
-  aiBtn.textContent='◆ AI FEEDBACK';
-  aiBtn.addEventListener('click',()=>getEssayAIFeedback(docId,data));
+  aiBtn.textContent=data.aiFeedback?'◆ SHOW AI FEEDBACK':'◆ AI FEEDBACK';
+  aiBtn.addEventListener('click',()=>{
+    if(data.aiFeedback && aiBox.innerHTML.trim()){
+      const nowHidden=aiBox.classList.toggle('hidden');
+      aiBtn.textContent=nowHidden?'◆ SHOW AI FEEDBACK':'◆ HIDE AI FEEDBACK';
+    } else {
+      getEssayAIFeedback(docId,data);
+    }
+  });
   acts.appendChild(aiBtn);
 
   const pdfB=document.createElement('button'); pdfB.className='ec-act'; pdfB.textContent='↓ PDF';
@@ -995,11 +1001,13 @@ async function getEssayAIFeedback(docId,data){
       else txt=JSON.stringify(result);
     }
     txt=(txt||'No feedback returned.').trim();
-    if(aiBox){ aiBox.innerHTML='<span class="ec-ai-label">AI EXAMINER</span>'+escapeHtml(txt); }
+    data.aiFeedback=txt; // remember so future clicks just toggle
+    if(aiBox){ aiBox.innerHTML='<span class="ec-ai-label">AI EXAMINER</span>'+escapeHtml(txt); aiBox.classList.remove('hidden'); }
+    if(aiBtn){ aiBtn.disabled=false; aiBtn.textContent='◆ HIDE AI FEEDBACK'; }
     try{ await updateDoc(doc(db,'essays',docId),{aiFeedback:txt}); }catch(e){}
+    return;
   }catch(e){
     if(aiBox){ aiBox.innerHTML='<span class="ec-ai-label">AI EXAMINER</span>Error fetching feedback. Try again.'; }
-  }finally{
     if(aiBtn){ aiBtn.disabled=false; aiBtn.textContent='◆ AI FEEDBACK'; }
   }
 }
@@ -1103,20 +1111,19 @@ function getEditableParent(sel){
   return null;
 }
 function wrapSelection(tag){
-  const ta=document.activeElement;
-  // textarea path (main essay)
-  if(ta && ta.tagName==='TEXTAREA'){
-    const s=ta.selectionStart, e=ta.selectionEnd;
-    if(s===e) return;
+  const ta=$('essay');
+  if(!ta) return;
+  let s=ta.selectionStart, e=ta.selectionEnd;
+  const marker=tag==='b'?'**':tag==='s'?'~~':'__';
+  if(s===e){
+    ta.value=ta.value.substring(0,s)+marker+marker+ta.value.substring(e);
+    ta.focus(); ta.selectionStart=ta.selectionEnd=s+marker.length;
+  } else {
     const sel=ta.value.substring(s,e);
-    const open=tag==='b'?'**':tag==='s'?'~~':'__';
-    ta.value=ta.value.substring(0,s)+open+sel+open+ta.value.substring(e);
-    ta.focus(); ta.selectionStart=s; ta.selectionEnd=e+open.length*2;
-    countWords(); saveDraft();
-    return;
+    ta.value=ta.value.substring(0,s)+marker+sel+marker+ta.value.substring(e);
+    ta.focus(); ta.selectionStart=s+marker.length; ta.selectionEnd=e+marker.length;
   }
-  // contenteditable path (modals)
-  document.execCommand(tag==='b'?'bold':tag==='s'?'strikeThrough':'underline',false,null);
+  countWords(); saveDraft();
 }
 
 /* ---------- timer ---------- */
@@ -1236,6 +1243,9 @@ function init(){
   $('tReset').addEventListener('click',()=>resetTimer());
 
   // format
+  ['fmtBold','fmtStrike','fmtUnder','editBold','editStrike','editUnder'].forEach(id=>{
+    const btn=$(id); if(btn) btn.addEventListener('mousedown',e=>e.preventDefault());
+  });
   $('fmtBold').addEventListener('click',()=>wrapSelection('b'));
   $('fmtStrike').addEventListener('click',()=>wrapSelection('s'));
   $('fmtUnder').addEventListener('click',()=>wrapSelection('u'));

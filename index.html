@@ -924,6 +924,7 @@ function buildCard(docId,data){
 }
 
 function searchEssays(){ const i=$('search'); renderEssays(i?i.value.trim():''); }
+function currentQuery(){ const i=$('search'); return i?i.value.trim():''; }
 
 /* ---------- submit / edit / delete ---------- */
 async function submitEssay(){
@@ -977,7 +978,16 @@ async function saveFeedback(){
 
 async function deleteEssay(docId){
   if(!confirm('Delete this essay permanently?')) return;
-  try{ await deleteDoc(doc(db,'essays',docId)); renderEssays('',false,true); toast('Essay deleted.'); }catch(e){ toast('Delete failed.'); }
+  try{
+    await deleteDoc(doc(db,'essays',docId));
+    // drop it from the in-memory cache too, then re-render from cache (instant)
+    allEssays=allEssays.filter(it=>it.id!==docId);
+    renderEssays(currentQuery(),false,false);
+    toast('✓ ESSAY DELETED');
+  }catch(e){
+    console.error('Delete failed:',e);
+    toast('Delete failed: '+((e&&e.code)||(e&&e.message)||'unknown error'));
+  }
 }
 
 /* ---------- AI feedback per essay ---------- */
@@ -1053,7 +1063,6 @@ async function sendChatMessage(){
 
   chatHistory.push({role:'user',content:text});
   input.value=''; input.style.height='auto';
-  credits-=1; setChatLimit(credits); updateChatCredit();
   renderChat();
 
   const typing=$('typing'); if(typing) typing.classList.remove('hidden');
@@ -1063,11 +1072,22 @@ async function sendChatMessage(){
     const payload={ message:text, chatHistory:userMessages, systemPrompt:SYSTEM_PROMPT, model:'gpt-3.5-turbo', userId:getUserId() };
     const r=await fetch(CHAT_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(reqId!==chatRequestCounter) return;
-    const data=await r.json();
+    if(!r.ok){
+      let detail=''; try{ detail=(await r.text()).slice(0,140); }catch(e){}
+      console.error('Chat HTTP '+r.status, detail);
+      chatHistory.push({role:'assistant',content:'The AI service returned an error (status '+r.status+'). '+(r.status===429?'Rate limit reached — wait a moment and try again.':r.status>=500?'The server is having trouble. Please try again shortly.':'Please try again.')});
+      renderChat(); return;
+    }
+    let data;
+    try{ data=await r.json(); }
+    catch(parseErr){ console.error('Chat JSON parse error',parseErr); chatHistory.push({role:'assistant',content:'The AI sent an unexpected response. Please try again.'}); renderChat(); return; }
     const msg=(data&&data.reply)?data.reply.trim():(data&&data.error?data.error:'Sorry, I could not get a response.');
+    // only spend a credit when we actually got a reply back
+    credits-=1; setChatLimit(credits); updateChatCredit();
     chatHistory.push({role:'assistant',content:msg}); renderChat();
   }catch(e){
-    if(reqId===chatRequestCounter){ chatHistory.push({role:'assistant',content:'Sorry, there was an error reaching the AI.'}); renderChat(); }
+    console.error('Chat fetch failed:',e);
+    if(reqId===chatRequestCounter){ chatHistory.push({role:'assistant',content:'Could not reach the AI service. Check your connection and try again.'}); renderChat(); }
   }finally{ if(typing) typing.classList.add('hidden'); }
 }
 function clearChat(){ chatHistory=[]; renderChat(); }
@@ -1099,7 +1119,11 @@ function toggleTeacherPanel(){ $('teacherPanel').classList.toggle('show'); }
 function enterTeacherMode(){
   const key=$('teacherKey').value.trim();
   if(!key){ toast('Enter teacher key.'); return; }
-  if(key===TEACHER_KEY){ teacherMode=true; toast('✓ TEACHER MODE ENABLED'); $('teacherKey').value=''; $('teacherPanel').classList.remove('show'); renderEssays('',false,true); }
+  if(key===TEACHER_KEY){
+    teacherMode=true; toast('✓ TEACHER MODE ENABLED');
+    $('teacherKey').value=''; $('teacherPanel').classList.remove('show');
+    renderEssays(currentQuery(),false,false); // re-render from cache instantly (adds edit/delete buttons)
+  }
   else toast('Wrong key.');
 }
 

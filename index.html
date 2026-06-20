@@ -294,9 +294,50 @@ input::placeholder,textarea::placeholder{color:var(--text-4)}
 .ec-act.ai-act:hover{border-color:#9d7bff;color:#9d7bff}
 .ec-gift{margin-top:9px;font-size:12.5px;color:var(--red);font-style:italic;line-height:1.5}
 
-/* ---------- chat dock ---------- */
-.chat-dock{margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg-1);overflow:hidden}
-.chat-head{display:flex;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
+/* ---------- floating AI button (FAB) ---------- */
+.ai-fab{
+  position:fixed;right:22px;bottom:22px;z-index:550;
+  width:60px;height:60px;border-radius:50%;
+  background:var(--red);border:none;cursor:pointer;
+  display:grid;place-items:center;color:#fff;
+  box-shadow:0 10px 30px -6px var(--red-glow),0 0 0 0 var(--red-glow);
+  transition:transform .25s cubic-bezier(.2,.7,.2,1),box-shadow .25s;
+  animation:fabPulse 2.6s infinite;
+}
+@keyframes fabPulse{0%{box-shadow:0 10px 30px -6px var(--red-glow),0 0 0 0 var(--red-glow)}70%{box-shadow:0 10px 30px -6px var(--red-glow),0 0 0 12px transparent}100%{box-shadow:0 10px 30px -6px var(--red-glow),0 0 0 0 transparent}}
+.ai-fab:hover{transform:scale(1.07)}
+.ai-fab-ic,.ai-fab-close{position:absolute;display:grid;place-items:center;transition:opacity .2s,transform .25s}
+.ai-fab-ic svg{width:25px;height:25px}
+.ai-fab-close{font-size:20px;opacity:0;transform:rotate(-90deg)}
+.ai-fab-badge{
+  position:absolute;top:-3px;right:-3px;
+  font-family:var(--mono);font-size:8.5px;font-weight:800;letter-spacing:.04em;
+  background:var(--text);color:var(--bg);padding:2px 5px;border-radius:999px;
+  border:2px solid var(--bg);transition:opacity .2s;
+}
+body.ai-open .ai-fab{animation:none}
+body.ai-open .ai-fab-ic{opacity:0;transform:rotate(90deg)}
+body.ai-open .ai-fab-close{opacity:1;transform:rotate(0)}
+body.ai-open .ai-fab-badge{opacity:0}
+body.focus .ai-fab{display:none}
+
+/* scrim behind panel (mobile) */
+.ai-scrim{position:fixed;inset:0;z-index:540;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);opacity:0;visibility:hidden;transition:.3s}
+body.ai-open .ai-scrim{opacity:1;visibility:visible}
+
+/* ---------- floating AI panel ---------- */
+.ai-panel{
+  position:fixed;right:22px;bottom:96px;z-index:545;
+  width:400px;max-width:calc(100vw - 28px);max-height:min(620px,calc(100vh - 130px));
+  background:var(--bg-1);border:1px solid var(--line-2);border-radius:10px;
+  display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:0 24px 60px -12px rgba(0,0,0,.7);
+  opacity:0;visibility:hidden;transform:translateY(16px) scale(.98);transform-origin:bottom right;
+  transition:opacity .28s cubic-bezier(.2,.7,.2,1),transform .28s cubic-bezier(.2,.7,.2,1),visibility .28s;
+}
+.ai-panel::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--red);z-index:2}
+body.ai-open .ai-panel{opacity:1;visibility:visible;transform:translateY(0) scale(1)}
+.chat-head{display:flex;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid var(--line);user-select:none;flex:none}
 .chat-avatar{width:34px;height:34px;border:1.5px solid var(--red);border-radius:50%;display:grid;place-items:center;flex:none;position:relative}
 .chat-avatar::after{content:"";width:6px;height:6px;background:var(--red);border-radius:50%;animation:livePulse 2s infinite}
 @keyframes livePulse{0%,100%{opacity:1}50%{opacity:.3}}
@@ -304,13 +345,11 @@ input::placeholder,textarea::placeholder{color:var(--text-4)}
 .chat-id h4{font-family:var(--mono);font-weight:700;font-size:13px;letter-spacing:.08em}
 .chat-id p{font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--text-3);margin-top:2px}
 .chat-id p .live{color:var(--green)}
-.chat-toggle{font-family:var(--mono);font-size:18px;color:var(--text-3);transition:.2s}
-.chat-dock.open .chat-toggle{transform:rotate(45deg)}
-.chat-body{max-height:0;overflow:hidden;transition:max-height .4s cubic-bezier(.2,.7,.2,1)}
-.chat-dock.open .chat-body{max-height:1200px}
-.chat-credit{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--text-3);padding:10px 18px;border-bottom:1px solid var(--line);text-transform:uppercase}
+.ai-panel-close{width:30px;height:30px;border:1px solid var(--line-2);background:transparent;color:var(--text-2);border-radius:4px;cursor:pointer;font-size:13px;transition:.15s;flex:none}
+.ai-panel-close:hover{border-color:var(--red);color:var(--red)}
+.chat-credit{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--text-3);padding:10px 18px;border-bottom:1px solid var(--line);text-transform:uppercase;flex:none}
 .chat-credit b{color:var(--red)}
-.chat-msgs{padding:18px;display:flex;flex-direction:column;gap:12px;min-height:160px;max-height:380px;overflow-y:auto}
+.chat-msgs{padding:18px;display:flex;flex-direction:column;gap:12px;flex:1 1 auto;min-height:140px;overflow-y:auto}
 .chat-msg{max-width:85%;padding:11px 14px;border-radius:var(--radius);font-size:14px;line-height:1.6;white-space:pre-wrap;word-wrap:break-word;animation:msgIn .3s ease both}
 @keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .chat-msg.user{align-self:flex-end;background:var(--red);color:#fff;border-bottom-right-radius:1px}
@@ -323,10 +362,10 @@ input::placeholder,textarea::placeholder{color:var(--text-4)}
 .typing i:nth-child(2){animation-delay:.2s}
 .typing i:nth-child(3){animation-delay:.4s}
 @keyframes typeBlink{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
-.chat-chips{display:flex;gap:7px;padding:0 18px 12px;flex-wrap:wrap}
+.chat-chips{display:flex;gap:7px;padding:0 18px 12px;flex-wrap:wrap;flex:none}
 .chat-chip{font-family:var(--mono);font-size:10px;letter-spacing:.04em;border:1px solid var(--line-2);background:transparent;color:var(--text-3);padding:6px 10px;border-radius:999px;cursor:pointer;transition:.15s}
 .chat-chip:hover{border-color:var(--red);color:var(--red)}
-.chat-input-row{display:flex;gap:8px;padding:14px 18px;border-top:1px solid var(--line);align-items:flex-end}
+.chat-input-row{display:flex;gap:8px;padding:14px 18px;border-top:1px solid var(--line);align-items:flex-end;flex:none}
 .chat-input-row textarea{flex:1;min-height:44px;max-height:120px;font-size:14px;padding:11px 13px}
 .chat-send{width:44px;height:44px;flex:none;border:1px solid var(--red);background:var(--red);color:#fff;border-radius:var(--radius);cursor:pointer;display:grid;place-items:center;transition:.18s}
 .chat-send:hover{box-shadow:0 0 18px -2px var(--red-glow)}
@@ -350,7 +389,7 @@ input::placeholder,textarea::placeholder{color:var(--text-4)}
 
 /* ---------- focus mode ---------- */
 body.focus .topbar,body.focus .hero,body.focus .sec-head,
-body.focus #essaysSec,body.focus .chat-dock,body.focus .editor-foot,
+body.focus #essaysSec,body.focus .editor-foot,
 body.focus #pdfBtn,body.focus #teacherBtn,body.focus #teacherPanel,
 body.focus .studio-sub{display:none!important}
 body.focus .panel{max-width:880px;margin:0 auto}
@@ -382,6 +421,14 @@ body.focus .focus-exit{display:inline-flex;align-items:center;gap:7px}
   .studio-bar{gap:9px}
   .timer{margin-left:0}
   .foot{margin:50px -14px 0}
+  /* AI panel goes near-fullscreen on phones */
+  .ai-panel{
+    right:0;left:0;bottom:0;width:100%;max-width:100%;
+    max-height:86vh;border-radius:14px 14px 0 0;border-bottom:none;
+    transform-origin:bottom center;transform:translateY(100%);
+  }
+  body.ai-open .ai-panel{transform:translateY(0)}
+  .ai-fab{right:16px;bottom:16px;width:56px;height:56px}
 }
 @media(prefers-reduced-motion:reduce){
   *{animation-duration:.001s!important;transition-duration:.05s!important}
@@ -519,42 +566,6 @@ body.focus .focus-exit{display:inline-flex;align-items:center;gap:7px}
     <div class="essays" id="essaysList"></div>
   </div>
 
-  <!-- AI -->
-  <div class="sec-head">
-    <span class="sec-num">// 003</span>
-    <span class="sec-title">PANGEYA AI</span>
-    <span class="sec-line"></span>
-  </div>
-  <div class="chat-dock" id="chatDock">
-    <div class="chat-head" id="chatHead">
-      <div class="chat-avatar"></div>
-      <div class="chat-id">
-        <h4>PANGEYA AI</h4>
-        <p><span class="live">●</span> IELTS WRITING EXAMINER</p>
-      </div>
-      <span class="chat-toggle">+</span>
-    </div>
-    <div class="chat-body">
-      <div class="chat-credit">CREDITS REMAINING: <b id="chatCredit">13</b></div>
-      <div class="chat-msgs" id="chatMsgs">
-        <div class="chat-empty">ASK ANYTHING ABOUT IELTS WRITING<br>STRUCTURE · VOCABULARY · BAND SCORES</div>
-        <div class="typing hidden" id="typing"><i></i><i></i><i></i></div>
-      </div>
-      <div class="chat-chips">
-        <button class="chat-chip" data-q="What is the ideal structure for an IELTS Writing Task 2 essay?">📝 Task 2 structure</button>
-        <button class="chat-chip" data-q="Show me a Band 9 sample answer for an opinion essay.">⭐ Band 9 sample</button>
-        <button class="chat-chip" data-q="Give me 10 advanced linking words for IELTS essays with examples.">🔗 Linking words</button>
-      </div>
-      <div class="chat-input-row">
-        <textarea id="chatInput" placeholder="Type a message…" rows="1"></textarea>
-        <button class="chat-send" id="chatSend" aria-label="Send">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
-        </button>
-      </div>
-      <div style="text-align:center;padding:0 0 12px"><button class="chat-clear" id="chatClear">CLEAR CONVERSATION</button></div>
-    </div>
-  </div>
-
   <!-- footer -->
   <div class="foot">
     <div class="foot-word">PANGEYA</div>
@@ -562,6 +573,45 @@ body.focus .focus-exit{display:inline-flex;align-items:center;gap:7px}
   </div>
 
 </div><!-- /shell -->
+
+<!-- FLOATING AI: button + panel (accessible from anywhere) -->
+<button class="ai-fab" id="aiFab" aria-label="Open Pangeya AI">
+  <span class="ai-fab-ic">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5Z"/></svg>
+  </span>
+  <span class="ai-fab-close">✕</span>
+  <span class="ai-fab-badge" id="aiFabBadge">AI</span>
+</button>
+
+<div class="ai-scrim" id="aiScrim"></div>
+
+<div class="ai-panel" id="aiPanel">
+  <div class="chat-head" id="chatHead">
+    <div class="chat-avatar"></div>
+    <div class="chat-id">
+      <h4>PANGEYA AI</h4>
+      <p><span class="live">●</span> IELTS WRITING EXAMINER</p>
+    </div>
+    <button class="ai-panel-close" id="aiPanelClose" aria-label="Close">✕</button>
+  </div>
+  <div class="chat-credit">CREDITS REMAINING: <b id="chatCredit">13</b></div>
+  <div class="chat-msgs" id="chatMsgs">
+    <div class="chat-empty">ASK ANYTHING ABOUT IELTS WRITING<br>STRUCTURE · VOCABULARY · BAND SCORES</div>
+    <div class="typing hidden" id="typing"><i></i><i></i><i></i></div>
+  </div>
+  <div class="chat-chips">
+    <button class="chat-chip" data-q="What is the ideal structure for an IELTS Writing Task 2 essay?">📝 Task 2 structure</button>
+    <button class="chat-chip" data-q="Show me a Band 9 sample answer for an opinion essay.">⭐ Band 9 sample</button>
+    <button class="chat-chip" data-q="Give me 10 advanced linking words for IELTS essays with examples.">🔗 Linking words</button>
+  </div>
+  <div class="chat-input-row">
+    <textarea id="chatInput" placeholder="Type a message…" rows="1"></textarea>
+    <button class="chat-send" id="chatSend" aria-label="Send">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>
+    </button>
+  </div>
+  <div style="text-align:center;padding:0 0 12px"><button class="chat-clear" id="chatClear">CLEAR CONVERSATION</button></div>
+</div>
 
 <!-- EDIT MODAL -->
 <div class="modal" id="editModal">
@@ -1212,15 +1262,23 @@ function init(){
   si.addEventListener('input',()=>{ clearTimeout(st); st=setTimeout(searchEssays,120); });
   si.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); clearTimeout(st); searchEssays(); } });
 
+  // ---- floating AI panel ----
+  function openAI(){ document.body.classList.add('ai-open'); setTimeout(()=>{ const ci=$('chatInput'); if(ci && innerWidth>560) ci.focus(); },300); }
+  function closeAI(){ document.body.classList.remove('ai-open'); }
+  function toggleAI(){ document.body.classList.contains('ai-open')?closeAI():openAI(); }
+  $('aiFab').addEventListener('click',toggleAI);
+  $('aiPanelClose').addEventListener('click',closeAI);
+  $('aiScrim').addEventListener('click',closeAI);
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&document.body.classList.contains('ai-open')) closeAI(); });
+
   // chat
-  $('chatHead').addEventListener('click',()=>$('chatDock').classList.toggle('open'));
   $('chatSend').addEventListener('click',sendChatMessage);
   $('chatClear').addEventListener('click',clearChat);
   const ci=$('chatInput');
   ci.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendChatMessage(); } });
   ci.addEventListener('input',function(){ this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,120)+'px'; });
   document.querySelectorAll('.chat-chip').forEach(c=>c.addEventListener('click',function(){
-    $('chatDock').classList.add('open');
+    openAI();
     ci.value=this.dataset.q; sendChatMessage();
   }));
 

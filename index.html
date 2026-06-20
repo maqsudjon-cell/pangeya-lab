@@ -6,6 +6,8 @@
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#000000">
 <title>Pangeya — IELTS Writing Lab</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23000000'/%3E%3Ccircle cx='32' cy='32' r='20' fill='none' stroke='%23ffffff' stroke-width='2.4'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%23D71921'/%3E%3Ccircle cx='32' cy='7.5' r='1.7' fill='%23ffffff'/%3E%3Ccircle cx='56.5' cy='32' r='1.7' fill='%23ffffff'/%3E%3Ccircle cx='32' cy='56.5' r='1.7' fill='%23ffffff'/%3E%3Ccircle cx='7.5' cy='32' r='1.7' fill='%23ffffff'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23000000'/%3E%3Ccircle cx='32' cy='32' r='20' fill='none' stroke='%23ffffff' stroke-width='2.4'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%23D71921'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -528,7 +530,7 @@ body.focus .focus-exit{display:inline-flex;align-items:center;gap:7px}
           <button class="fmt-btn" id="fmtStrike" title="Strikethrough" type="button"><s>S</s></button>
           <button class="fmt-btn" id="fmtUnder" title="Underline" type="button"><u>U</u></button>
         </div>
-        <textarea id="essay" placeholder="Begin writing your response…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+        <textarea id="essay" placeholder="Begin writing your response…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false"></textarea>
 
         <div class="editor-foot">
           <span class="autosave" id="autosave"><span class="as-dot"></span> AUTO-SAVE</span>
@@ -625,7 +627,7 @@ body.focus .focus-exit{display:inline-flex;align-items:center;gap:7px}
       <button class="fmt-btn" id="editStrike" type="button"><s>S</s></button>
       <button class="fmt-btn" id="editUnder" type="button"><u>U</u></button>
     </div>
-    <div class="edit-area" id="editArea" contenteditable="true"></div>
+    <div class="edit-area" id="editArea" contenteditable="true" spellcheck="false" data-gramm="false"></div>
     <div class="modal-sub" id="giftWrap" style="display:none">GIFT MESSAGE (TEACHER)</div>
     <textarea id="giftMessageInput" style="display:none" placeholder="Leave an encouraging note…"></textarea>
     <button class="btn btn-primary" id="editSave">SAVE CHANGES →</button>
@@ -641,9 +643,9 @@ body.focus .focus-exit{display:inline-flex;align-items:center;gap:7px}
     </div>
     <p style="font-size:12px;color:var(--text-3);margin-bottom:6px;font-family:var(--mono);letter-spacing:.04em">Use ✔ for strengths and ✘ for fixes. Each on its own line.</p>
     <div class="modal-sub">ESSAY</div>
-    <div class="edit-area" id="fbEssayArea" contenteditable="true" style="min-height:140px"></div>
+    <div class="edit-area" id="fbEssayArea" contenteditable="true" spellcheck="false" data-gramm="false" style="min-height:140px"></div>
     <div class="modal-sub">FEEDBACK</div>
-    <div class="fb-area" id="fbArea" contenteditable="true"></div>
+    <div class="fb-area" id="fbArea" contenteditable="true" spellcheck="false" data-gramm="false"></div>
     <button class="btn btn-primary" id="fbSave">SAVE FEEDBACK →</button>
   </div></div>
 </div>
@@ -933,12 +935,17 @@ async function submitEssay(){
   const name=nameI.value.trim(), essay=essayI.value.trim();
   if(!essay){ toast('Write an essay before submitting.'); return; }
   const now=new Date();
+  const btn=$('submitBtn'); if(btn){ btn.disabled=true; btn.style.opacity='.6'; }
   try{
-    await addDoc(essaysRef,{ name:name||'Unknown', essay:essay, date:formatDate(now), timestamp:now.getTime(), feedback:'' });
-    renderEssays('',false,true);
+    const docData={ name:name||'Unknown', essay:essay, date:formatDate(now), timestamp:now.getTime(), feedback:'' };
+    const ref=await addDoc(essaysRef,docData);
+    // add to the in-memory cache at the top, render instantly (no full reload)
+    if(essaysLoaded){ allEssays.unshift({ id:ref.id, data:docData }); }
+    renderEssays(currentQuery(),false,false);
     essayI.value=''; nameI.value=''; countWords(); saveDraft();
     toast('✓ ESSAY SAVED TO CLOUD');
-  }catch(e){ toast('Save failed — check connection.'); }
+  }catch(e){ console.error('Submit failed:',e); toast('Save failed: '+((e&&e.code)||(e&&e.message)||'check connection')); }
+  finally{ if(btn){ btn.disabled=false; btn.style.opacity=''; } }
 }
 
 async function openEditModal(docId,data){
@@ -1093,18 +1100,105 @@ async function sendChatMessage(){
 function clearChat(){ chatHistory=[]; renderChat(); }
 
 /* ---------- PDF ---------- */
-function makePDF(name,essay){
+// Brand mark drawn with vectors so it reads well in colour AND greyscale.
+function drawLogo(d, x, y, r){
+  // outer ring (black — prints solid in greyscale)
+  d.setDrawColor(10,10,10); d.setLineWidth(r*0.13);
+  d.circle(x, y, r, 'S');
+  // inner dot (Nothing red — becomes a clear dark dot in greyscale)
+  d.setFillColor(215,25,33);
+  d.circle(x, y, r*0.34, 'F');
+  // four cardinal pixels (the dot-matrix cue)
+  d.setFillColor(10,10,10);
+  const p=r*0.085;
+  d.circle(x, y-r, p, 'F'); d.circle(x, y+r, p, 'F');
+  d.circle(x-r, y, p, 'F'); d.circle(x+r, y, p, 'F');
+}
+function makePDF(name,essay,feedback){
   const { jsPDF }=window.jspdf;
   const d=new jsPDF({unit:'pt',format:'a4'});
-  d.setFontSize(18); d.text('Pangeya — IELTS Writing Lab',40,50);
-  d.setFontSize(11); d.setTextColor(120);
-  d.text('Candidate: '+(name||'Unknown'),40,76);
-  d.text('Date: '+formatDate(new Date()),40,92);
-  d.setTextColor(20); d.setFontSize(12); d.text('Essay:',40,124);
-  d.setFontSize(11);
+  const PW=d.internal.pageSize.getWidth();   // ~595
+  const PH=d.internal.pageSize.getHeight();  // ~842
+  const M=48;                                // margin
   const clean=stripHtml(essay||'');
-  const lines=d.splitTextToSize(clean,515);
-  d.text(lines,40,146);
+  const words=clean.trim()?clean.trim().split(/\s+/).filter(w=>w.length>0).length:0;
+
+  function header(){
+    // top hairline + brand
+    drawLogo(d, M+11, 52, 11);
+    d.setFont('helvetica','bold'); d.setFontSize(15); d.setTextColor(10,10,10);
+    d.text('PANGEYA', M+30, 50);
+    d.setFont('courier','normal'); d.setFontSize(8); d.setTextColor(215,25,33);
+    d.text('/ IELTS WRITING LAB', M+109, 50);
+    d.setDrawColor(215,25,33); d.setLineWidth(1.4);
+    d.line(M, 68, PW-M, 68);
+    // faint matrix dots along the rule (subtle, greyscale-safe)
+    d.setFillColor(200,200,200);
+    for(let i=0;i<26;i++){ d.circle(M+8+i*((PW-2*M-16)/25), 74, 0.7, 'F'); }
+  }
+  function footer(pageNo){
+    d.setDrawColor(220,220,220); d.setLineWidth(0.8);
+    d.line(M, PH-44, PW-M, PH-44);
+    drawLogo(d, M+7, PH-30, 7);
+    d.setFont('courier','normal'); d.setFontSize(7.5); d.setTextColor(120,120,120);
+    d.text('PANGEYA · PANGEA8 · TASHKENT', M+20, PH-27);
+    d.text('PAGE '+pageNo, PW-M-40, PH-27);
+  }
+
+  header();
+
+  // candidate card
+  let y=98;
+  d.setFillColor(245,245,245); d.setDrawColor(225,225,225); d.setLineWidth(0.8);
+  d.roundedRect(M, y, PW-2*M, 56, 4, 4, 'FD');
+  // red left accent bar
+  d.setFillColor(215,25,33); d.rect(M, y, 3, 56, 'F');
+  d.setFont('courier','normal'); d.setFontSize(8); d.setTextColor(140,140,140);
+  d.text('CANDIDATE', M+16, y+19);
+  d.text('DATE', M+250, y+19);
+  d.text('WORDS', M+250, y+43);
+  d.setFont('helvetica','bold'); d.setFontSize(13); d.setTextColor(15,15,15);
+  d.text(name||'Unknown', M+16, y+40);
+  d.setFont('courier','normal'); d.setFontSize(10); d.setTextColor(40,40,40);
+  d.text(formatDate(new Date()), M+300, y+19);
+  // word count: green if >=250, amber otherwise (still readable in greyscale)
+  if(words>=250) d.setTextColor(20,140,80); else d.setTextColor(180,130,20);
+  d.setFont('helvetica','bold'); d.text(String(words), M+300, y+43);
+
+  // essay heading
+  y+=80;
+  d.setFont('courier','bold'); d.setFontSize(9); d.setTextColor(215,25,33);
+  d.text('// ESSAY', M, y);
+  d.setDrawColor(230,230,230); d.setLineWidth(0.6); d.line(M+58, y-3, PW-M, y-3);
+
+  // essay body with pagination
+  y+=20;
+  d.setFont('helvetica','normal'); d.setFontSize(11); d.setTextColor(25,25,25);
+  const lines=d.splitTextToSize(clean,PW-2*M);
+  const lh=16; let pageNo=1;
+  for(let i=0;i<lines.length;i++){
+    if(y>PH-70){ footer(pageNo); d.addPage(); pageNo++; header(); y=100; d.setFont('helvetica','normal'); d.setFontSize(11); d.setTextColor(25,25,25); }
+    d.text(lines[i], M, y); y+=lh;
+  }
+
+  // optional teacher feedback block
+  const fb=(feedback||'').trim();
+  if(fb){
+    y+=14;
+    if(y>PH-120){ footer(pageNo); d.addPage(); pageNo++; header(); y=100; }
+    d.setFont('courier','bold'); d.setFontSize(9); d.setTextColor(20,140,80);
+    d.text('// TEACHER FEEDBACK', M, y); y+=8;
+    const fbLines=d.splitTextToSize(fb,PW-2*M-16);
+    const boxH=fbLines.length*14+20;
+    d.setFillColor(247,250,248); d.setDrawColor(210,230,218); d.setLineWidth(0.8);
+    d.roundedRect(M, y, PW-2*M, boxH, 4, 4, 'FD');
+    d.setFillColor(20,140,80); d.rect(M, y, 3, boxH, 'F');
+    d.setFont('helvetica','normal'); d.setFontSize(10.5); d.setTextColor(40,40,40);
+    let fy=y+18; fbLines.forEach(l=>{ d.text(l, M+14, fy); fy+=14; });
+    y+=boxH;
+  }
+
+  footer(pageNo);
   return d;
 }
 async function downloadPDF(){
@@ -1112,7 +1206,7 @@ async function downloadPDF(){
   if(!essay){ toast('Nothing to export yet.'); return; }
   makePDF(name,essay).save((name||'essay')+'-pangeya.pdf');
 }
-async function downloadEssayPDF(data){ makePDF(data.name,data.essay).save((data.name||'essay')+'-pangeya.pdf'); }
+async function downloadEssayPDF(data){ makePDF(data.name,data.essay,data.feedback).save((data.name||'essay')+'-pangeya.pdf'); }
 
 /* ---------- teacher ---------- */
 function toggleTeacherPanel(){ $('teacherPanel').classList.toggle('show'); }
